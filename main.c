@@ -83,13 +83,29 @@ CGEventRef mouse_callback(CGEventTapProxy proxy, CGEventType type, CGEventRef ev
     int64_t button = CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber);
     bool is_down = (type == kCGEventOtherMouseDown);
 
+    // Handle speed adjustment and identify if it's a target side button
+    bool is_side_button = false;
     switch (button) {
         case 3: // Button 4
             set_mouse_speed(is_down ? CONFIG.precision_speed : CONFIG.default_speed);
+            is_side_button = true;
             break;
         case 4: // Button 5
             set_mouse_speed(is_down ? CONFIG.tactical_speed : CONFIG.default_speed);
+            is_side_button = true;
             break;
+    }
+
+    // Additionally trigger a right click/release if it was a side button
+    if (is_side_button) {
+        CGPoint location = CGEventGetLocation(event);
+        CGEventType right_type = is_down ? kCGEventRightMouseDown : kCGEventRightMouseUp;
+        CGEventRef right_click = CGEventCreateMouseEvent(NULL, right_type, location, kCGMouseButtonRight);
+        
+        if (right_click) {
+            CGEventPost(kCGHIDEventTap, right_click);
+            CFRelease(right_click);
+        }
     }
 
     return event;
@@ -123,10 +139,10 @@ void print_banner(void) {
     printf("  ___) | |\\  || ||  __/| |___|  _ <    | |  | | |_| | |_| |___) | |___ \n");
     printf(" |____/|_| \\_|___|_|   |_____|_| \\_\\   |_|  |_|\\___/ \\___/|____/|_____|\n");
     printf("\n");
-    printf(" A utility to adjust mouse sensitivity on-the-fly:\n");
-    printf(" - [Hold Button 4]  Precision Mode (%.1f speed)\n", CONFIG.precision_speed);
-    printf(" - [Hold Button 5]  Tactical Mode  (%.1f speed)\n", CONFIG.tactical_speed);
-    printf(" - [Release]        Default Speed  (%.1f speed)\n", CONFIG.default_speed);
+    printf(" A utility to adjust mouse sensitivity and trigger right-clicks on-the-fly:\n");
+    printf(" - [Hold Button 4]  Precision Mode (%.1f speed) + Right Click\n", CONFIG.precision_speed);
+    printf(" - [Hold Button 5]  Tactical Mode  (%.1f speed) + Right Click\n", CONFIG.tactical_speed);
+    printf(" - [Release]        Default Speed  (%.1f speed) + Right Release\n", CONFIG.default_speed);
     printf("\n Listening for mouse events... (Ctrl+C to stop)\n");
 }
 
